@@ -1,9 +1,7 @@
 import sqlite3
 import json
 from flask import render_template, request, jsonify, make_response
-connection = sqlite3.connect("configs.db")
 
-cursor = connection.cursor()
 
 job_arg = json.dumps([])
 d = '"'+job_arg+'"'
@@ -41,6 +39,7 @@ def queryCloudVM():
     cmd = request.args.get('q')
     print(cmd)
     commit = request.args.get('commit')
+    connection = sqlite3.connect("configs.db")
     cursor = connection.cursor()
     rows = cursor.execute(cmd).fetchall()
     connection.commit()
