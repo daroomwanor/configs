@@ -1,58 +1,94 @@
-import sqlite3
+#!/usr/bin/env python
+
+# WS server example that synchronizes state across clients
+import os
+import asyncio
 import json
-from flask import render_template, request, jsonify, make_response
+import websockets
+import subprocess
+import time
+import sqlite3
+import requests
+
+STATE = {"value": 0}
+
+USERS = set()
+Active = []
 
 
-job_arg = json.dumps([])
-d = '"'+job_arg+'"'
-q="CREATE TABLE configsTable (\
-Id INTEGER PRIMARY KEY,\
-username varchar(200) DEFAULT NULL,\
-cloudName varchar(200) DEFAULT NULL,\
-status varchar(200) DEFAULT NULL,\
-job_arguments blob,\
-runTimeStamp timestamp NULL DEFAULT CURRENT_TIMESTAMP)"
+
+async def register(websocket):
+    USERS.add(websocket)
+    Active.append({'user':websocket})
+    print(USERS)
+    
 
 
-job_q="CREATE TABLE jobsTable (\
-Id INTEGER PRIMARY KEY,\
-name varchar(200) DEFAULT NULL,\
-jobType varchar(200) DEFAULT NULL,\
-status varchar(200) DEFAULT NULL,\
-job_arguments blob,\
-runTimeStamp timestamp NULL DEFAULT CURRENT_TIMESTAMP)"
+async def unregister(websocket):
+    for x in range(len(Active)):
+        if Active[x]['user'] == websocket:
+            USERS.remove(websocket)
+            Active.pop(x)
 
-insertRoot='INSERT INTO configsTable (username, cloudname, status, job_arguments) VALUES\
-("root", "service", "new",'+d+')'
-
-
-from flask import Flask
-
-app = Flask(__name__)
-
-@app.route("/")
-def index():
-    return "<p>Welcome, Ariel Cloud User!</p>"
-
-@app.route("/queryCloudVM/")
-def queryCloudVM():
-    cmd = request.args.get('q')
-    print(cmd)
-    commit = request.args.get('commit')
-    connection = sqlite3.connect("configs.db")
-    cursor = connection.cursor()
-    rows = cursor.execute(cmd).fetchall()
+async def sql(cmd):
+    connection = sqlite3.connect("vos.db")
+    conn       = connection.cursor()
+    row = conn.execute(cmd).fetchall()
+    data = {"type":"sql","value":row}
+    print(row)
     connection.commit()
-    resp = json.dumps(rows)
-    return resp
+    await Active[0]['user'].send(json.dumps(data))
+    await Active[0]['user'].send("Break")
+    return row
 
-@app.route("/bashCloudVM/", methods=['GET', 'POST'])
-def bashCloudVM():
-    cmd = request.args.get('cmd')
-    stream = os.popen(cmd)
-    output = stream.readlines()
-    return output
 
-if __name__ == '__main__':
-    app.run()
+async def run(bash_process,cmd):
+    bash_process.stdin.write(cmd)
+    bash_process.stdin.close()
+    while True:
+        output = bash_process.stdout.readline()
+        if output.decode("utf-8") == "" and bash_process.poll() is not None:
+            await Active[0]['user'].send("Break")
+            print("______Breaking Active User______")
+            break
+        if output.decode("utf-8") != "":
+            msg = json.dumps({"type": "sh", "value":output.decode("utf-8")})
+            await Active[0]['user'].send(msg)
+            print(msg)
+            
+async def ide(bash_process,cmd):
+    bash_process.stdin.write(cmd)
+    bash_process.stdin.close()
+    time.sleep(10)
+    req = requests.get(url="http://localhost:4040/api/tunnels")
+    data = json.dumps(req.text)
+    msg = json.dumps({"type": "ide", "value":data})
+    await Active[0]['user'].send(msg)
+    print(msg)
+    await Active[0]['user'].send("Break")
+    
+async def init(websocket, path):
+    # register(websocket) sends user_event() to websocket
+    await register(websocket)
+    try:
+        bash_process = subprocess.Popen(args=['sh'], stdout=subprocess.PIPE,stdin=subprocess.PIPE)
+        async for message in websocket:
+            data = json.loads(message)
+            if data['type'] == "sql":
+                await sql(data['cmd'])
+                bash_process.stdin.close()
+                bash_process.stdout.close()
+            if data['type'] == "sh":
+                await run(bash_process, data['cmd'].encode('UTF-8'))
+                bash_process.stdin.close()
+            if data['type'] == "ide":
+                await ide(bash_process,data['cmd'].encode('UTF-8'))
+                bash_process.stdin.close()
+    finally:
+        await unregister(websocket)
 
+
+start_server = websockets.serve(init, "0.0.0.0", 7777)
+
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
