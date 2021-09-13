@@ -6,8 +6,14 @@
 
 start() {
   rm -R /configs
+  rm configsDB.py
+  rm /etc/init.d/vos
   git clone https://github.com/daroomwanor/configs.git
-  cd /configs; gunicorn --bind localhost:7771 configsDB.py --daemon 
+  mv configs/configsDB.py /
+  mv /configs/vos /etc/init.d/
+  chmod 777 /etc/init.d/vos
+  chmod 777 /configsDB.py
+  gunicorn --bind localhost:7771 configsDB.py --daemon 
 }
 
 stop() {
