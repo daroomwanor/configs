@@ -44,7 +44,6 @@ async def sql(cmd):
 
 async def run(bash_process,cmd):
     bash_process.stdin.write(cmd)
-    bash_process.stdin.close()
     while True:
         output = bash_process.stdout.readline()
         if output.decode("utf-8") == "" and bash_process.poll() is not None:
@@ -58,7 +57,6 @@ async def run(bash_process,cmd):
             
 async def ide(bash_process,cmd):
     bash_process.stdin.write(cmd)
-    bash_process.stdin.close()
     time.sleep(10)
     req = requests.get(url="http://localhost:4040/api/tunnels")
     data = json.dumps(req.text)
