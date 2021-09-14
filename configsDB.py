@@ -45,7 +45,6 @@ async def sql(cmd):
 async def run(bash_process,cmd):
     bash_process.stdin.write(cmd)
     bash_process.stdin.close()
-    await Active[0]['user'].recv()
     while True:
         output = bash_process.stdout.readline()
         if output.decode("utf-8") == "" and bash_process.poll() is not None:
