@@ -20,6 +20,27 @@ stop() {
   pkill -9 gunicorn
 }
 
+start_ngrok() {
+  pkill -9 ngrok
+  rm -R ngrok
+  rm ngrok.zip
+  curl -o ngrok.zip https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+  unzip ngrok.zip
+  /ngrok http 8888
+}
+
+stop_ngrok() {
+  pkill -9 ngrok
+}
+
+start_notebook() {
+  pkill -9 jupyter
+  jupyter notebook --allow-root --NotebookApp.allow_remote_access=True --NotebookApp.token="" --NotebookApp.password=""&
+}
+
+stop_notebook() {
+  pkill -9 jupyter
+}
 case "$1" in 
     start)
        start
@@ -31,9 +52,17 @@ case "$1" in
        stop
        start
        ;;
-    status)
-       # code to check status of app comes here 
-       # example: status program_name
+    start_ngrok)
+      start_ngrok
+       ;;
+    stop_ngrok)
+      stop_ngrok
+       ;;
+    start_notebook)
+      start_notebook
+       ;;
+    stop_notebook)
+      stop_notebook
        ;;
     *)
        echo "Usage: $0 {start|stop|status|restart}"

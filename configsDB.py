@@ -25,47 +25,62 @@ async def register(websocket):
 
 
 async def unregister(websocket):
-    for x in range(len(Active)):
-        if Active[x]['user'] == websocket:
-            USERS.remove(websocket)
-            Active.pop(x)
+    try:
+        for x in range(len(Active)):
+            if Active[x]['user'] == websocket:
+                USERS.remove(websocket)
+                Active.pop(x)
+    except:
+        print("Error Occured")
+
 
 async def sql(cmd):
-    connection = sqlite3.connect("vos.db")
-    conn       = connection.cursor()
-    row = conn.execute(cmd).fetchall()
-    data = {"type":"sql","value":row}
-    print(row)
-    connection.commit()
-    await Active[0]['user'].send(json.dumps(data))
-    await Active[0]['user'].send("Break")
-    return row
+    try:
+        connection = sqlite3.connect("vos.db")
+        conn       = connection.cursor()
+        row = conn.execute(cmd).fetchall()
+        data = {"type":"sql","value":row}
+        print(row)
+        connection.commit()
+        await Active[0]['user'].send(json.dumps(data))
+        await Active[0]['user'].send("Break")
+    except:
+        await Active[0]['user'].send(json.dumps(data))
+        await Active[0]['user'].send("Break")
+
 
 
 async def run(bash_process,cmd):
-    bash_process.stdin.write(cmd)
-    bash_process.stdin.close()
-    while True:
-        output = bash_process.stdout.readline()
-        if output.decode("utf-8") == "" and bash_process.poll() is not None:
-            await Active[0]['user'].send("Break")
-            print("______Breaking Active User______")
-            break
-        if output.decode("utf-8") != "":
-            msg = json.dumps({"type": "sh", "value":output.decode("utf-8")})
-            await Active[0]['user'].send(msg)
-            print(msg)
-            
+    try:
+        bash_process.stdin.write(cmd)
+        bash_process.stdin.close()
+        while True:
+            output = bash_process.stdout.readline()
+            if output.decode("utf-8") == "" and bash_process.poll() is not None:
+                await Active[0]['user'].send("Break")
+                print("______Breaking Active User______")
+                break
+            if output.decode("utf-8") != "":
+                msg = json.dumps({"type": "sh", "value":output.decode("utf-8")})
+                await Active[0]['user'].send(msg)
+                print(msg)
+    except:
+        await Active[0]['user'].send("Break")
+
+    
 async def ide(bash_process,cmd):
-    bash_process.stdin.write(cmd)
-    bash_process.stdin.close()
-    time.sleep(10)
-    req = requests.get(url="http://localhost:4040/api/tunnels")
-    data = json.dumps(req.text)
-    msg = json.dumps({"type": "ide", "value":data})
-    await Active[0]['user'].send(msg)
-    print(msg)
-    await Active[0]['user'].send("Break")
+    try:
+        bash_process.stdin.write(cmd)
+        bash_process.stdin.close()
+        time.sleep(10)
+        req = requests.get(url="http://localhost:4040/api/tunnels")
+        data = json.dumps(req.text)
+        msg = json.dumps({"type": "ide", "value":data})
+        await Active[0]['user'].send(msg)
+        print(msg)
+        await Active[0]['user'].send("Break")
+    except:
+        await Active[0]['user'].send("Break")
     
 async def init(websocket, path):
     # register(websocket) sends user_event() to websocket
