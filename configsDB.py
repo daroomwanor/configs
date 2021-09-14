@@ -76,15 +76,12 @@ async def init(websocket, path):
             data = json.loads(message)
             if data['type'] == "sql":
                 await sql(data['cmd'])
-                bash_process.stdin.close()
-                bash_process.stdout.close()
             if data['type'] == "sh":
                 await run(bash_process, data['cmd'].encode('UTF-8'))
-                bash_process.stdin.close()
             if data['type'] == "ide":
                 await ide(bash_process,data['cmd'].encode('UTF-8'))
-                bash_process.stdin.close()
     finally:
+        bash_process.close()
         await unregister(websocket)
 
 
