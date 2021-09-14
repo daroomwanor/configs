@@ -71,17 +71,17 @@ async def init(websocket, path):
     # register(websocket) sends user_event() to websocket
     await register(websocket)
     try:
-        bash_process = subprocess.Popen(args=['sh'], stdout=subprocess.PIPE,stdin=subprocess.PIPE)
         async for message in websocket:
             data = json.loads(message)
             if data['type'] == "sql":
                 await sql(data['cmd'])
             if data['type'] == "sh":
+                bash_process = subprocess.Popen(args=['sh'], stdout=subprocess.PIPE,stdin=subprocess.PIPE)
                 await run(bash_process, data['cmd'].encode('UTF-8'))
             if data['type'] == "ide":
+                bash_process = subprocess.Popen(args=['sh'], stdout=subprocess.PIPE,stdin=subprocess.PIPE)
                 await ide(bash_process,data['cmd'].encode('UTF-8'))
     finally:
-        bash_process.close()
         await unregister(websocket)
 
 
